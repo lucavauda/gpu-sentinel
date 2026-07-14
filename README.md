@@ -5,8 +5,8 @@ A self-directed lab that reproduces the **NVIDIAScape** container-escape class
 catches it two ways: a Falco + Sigma detection pack, and a class-imbalance ML
 detector for cryptominers on GPU nodes.
 
-> A host-privileged process trusted attacker-controlled input — an inherited
-> `LD_PRELOAD` pointing at an attacker-supplied library — so the attacker's code
+> A host-privileged process trusted attacker-controlled input an inherited
+> `LD_PRELOAD` pointing at an attacker-supplied library so the attacker's code
 > ran as root on the host. That sentence is CVE-2025-23266.
 
 The whole thing routes through **containers → OCI runtime hooks → detection
@@ -41,7 +41,7 @@ See [`ROADMAP.md`](ROADMAP.md) for the original phase-by-phase plan.
 
 ## Run it yourself
 
-Phases 0–4 need a Linux VM (the toolchain — `runc`, Falco eBPF, `auditd` — is
+Phases 0–4 need a Linux VM (the toolchain `runc`, Falco eBPF, `auditd` is
 Linux-only). On macOS I used [Lima](https://lima-vm.io/):
 
 ```bash
@@ -56,7 +56,7 @@ Then each phase ends at a green test, e.g.:
 cd 00-lab && ./verify.sh          # PHASE 0 COMPLETE ✅
 ```
 
-Phase 5 needs no VM and no GPU — just Python:
+Phase 5 needs no VM and no GPU, just Python:
 
 ```bash
 cd 05-ml-cryptominer
