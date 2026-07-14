@@ -19,7 +19,7 @@ rest of the piece will pay off:
 > `LD_PRELOAD` pointing at an attacker-supplied library, so the attacker's code
 > ran as root on the host. That sentence is CVE-2025-23266.
 
-The whole project is open source on GitHub: https://github.com/<your-username>/gpu-sentinel
+The whole project is open source on GitHub: https://github.com/lucavauda/gpu-sentinel
 
 ## How I built it with a coding agent
 
