@@ -1,0 +1,81 @@
+# Phase 4 — GPU-Sec detection pack (Falco)
+#
+# Fill in each core `condition:`. They're stubbed with __TODO_REPLACE_ME__ so the
+# file loads but nothing fires (red). Replace with real logic derived from your
+# telemetry-map.md. DO NOT rename the rules — test-rules.sh keys on the names.
+#
+# Handy fields (self-contained; no default macros needed):
+#   evt.type, evt.dir (< = syscall exit)   proc.name  proc.pname (parent)
+#   proc.aname  -> matches ANY ancestor, e.g.  proc.aname in (runc)
+#   proc.cmdline  proc.exepath  proc.env   fd.name  fd.directory  user.uid
+# String ops: `=`, `in (...)`, `contains`, `icontains`, `startswith`, `endswith`,
+# `pmatch (...)` for path lists.
+
+########################  CORE RULES (gated by test-rules.sh)  ##################
+
+- rule: GPUSEC LD_PRELOAD in Container Runtime Hook Chain
+  desc: >
+    A process spawned within the container-runtime/hook chain carries LD_PRELOAD
+    in its environment — the NVIDIAScape cause. Cause-level: lowest false positive,
+    generalises across payload variants.
+  # HINT: an execve, whose ENVIRONMENT contains LD_PRELOAD, AND which descends from
+  # the container runtime (an ancestor is runc). Think: proc.env + proc.aname.
+  condition: evt.type=execve and proc.env contains "LD_PRELOAD=" and
+    proc.aname contains "runc"
+  output: "GPUSEC LD_PRELOAD in runtime hook chain (proc=%proc.name parent=%proc.pname cmd=%proc.cmdline env=%proc.env euid=%user.uid)"
+  priority: CRITICAL
+  tags: [gpu-sec, container_escape, nvidiascape, mitre_privilege_escalation]
+
+- rule: GPUSEC Unexpected Shared Object Loaded During Container Setup
+  desc: >
+    A shared object is loaded from a non-standard path by a process in the runtime
+    hook chain — the injected evil.so. Artifact-level.
+  # HINT: an open/openat/openat2 of a file ending in ".so", by a runc-descended
+  # process, and NOT from a standard library directory (exclude /lib, /usr/lib,
+  # /lib64, /usr/lib64 — otherwise you'll fire on every normal libc load; the
+  # benign baseline will catch you if you forget this).
+  condition: evt.type in (open,openat,openat2) and
+    fd.name endswith ".so" and
+    proc.aname contains "runc" and
+    not fd.name startswith "/lib" and
+    not fd.name startswith "/usr/lib" and
+    not fd.name startswith "/lib64" and
+    not fd.name startswith "/usr/lib64"
+  output: "GPUSEC unexpected .so loaded during container setup (proc=%proc.name so=%fd.name parent=%proc.pname euid=%user.uid)"
+  priority: CRITICAL
+  tags: [gpu-sec, container_escape, nvidiascape]
+
+- rule: GPUSEC Host Path Accessed by Container Runtime Hook
+  desc: >
+    A runtime-hook-descended process touches a sensitive HOST path outside any
+    container rootfs — the escape's effect (reading the host secret / writing the
+    proof). Effect-level backstop.
+  # HINT: an open of a path under a sensitive host prefix, by a runc-descended
+  # process. Pick the prefix that represents "host resources a tenant must not
+  # reach" in this lab.
+  condition: evt.type in (open,openat,openat2) and evt.dir=< and
+   proc.aname in (runc) and
+   fd.name startswith "/opt/gpu-sec/host-only"
+  output: "GPUSEC host path accessed by runtime hook (proc=%proc.name file=%fd.name parent=%proc.pname euid=%user.uid)"
+  priority: WARNING
+  tags: [gpu-sec, container_escape]
+
+####################  BONUS RULES (not gated — portfolio breadth)  #############
+# Not exercised by the toy attack, so test-rules.sh won't check them. Fill them
+# for the blog / a real GPU node. They keep __TODO_OPTIONAL__ so they never fire.
+
+- rule: GPUSEC nvidia-smi From Unexpected Parent
+  desc: nvidia-smi launched by an unusual parent (a shell in a container, cron, etc.)
+  # HINT: proc.name = nvidia-smi AND proc.pname not in an allowlist of expected parents.
+  condition: evt.type=execve and proc.name="__TODO_OPTIONAL__"
+  output: "GPUSEC nvidia-smi from unexpected parent (parent=%proc.pname cmd=%proc.cmdline)"
+  priority: NOTICE
+  tags: [gpu-sec, discovery]
+
+- rule: GPUSEC Unexpected Kernel Module Loaded
+  desc: A kernel module load (e.g. a swapped nvidia.ko) outside a normal driver install.
+  # HINT: init_module / finit_module syscalls; scope to unexpected contexts/parents.
+  condition: evt.type in (init_module,finit_module) and proc.name="__TODO_OPTIONAL__"
+  output: "GPUSEC unexpected kernel module load (proc=%proc.name cmd=%proc.cmdline)"
+  priority: WARNING
+  tags: [gpu-sec, persistence]

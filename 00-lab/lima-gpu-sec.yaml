@@ -1,0 +1,48 @@
+# Lima config for the GPU-Sec lab VM.
+#
+#   brew install lima
+#   limactl start --name=gpu-sec ./lima-gpu-sec.yaml
+#   limactl shell gpu-sec
+#
+# On Apple Silicon the arm64 image is chosen automatically (native speed).
+# The repo is mounted read/write at the SAME path inside the VM, so your
+# edits on macOS and your runs inside the VM see the same files.
+
+images:
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
+    arch: "x86_64"
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img"
+    arch: "aarch64"
+
+cpus: 2
+memory: "4GiB"
+disk: "20GiB"
+
+mounts:
+  - location: "~/myproject/GPU_Sec"
+    writable: true
+
+# A recent kernel is what makes Falco's modern-eBPF probe work later (Phase 3).
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update
+      # Core toolchain for the whole lab.
+      apt-get install -y \
+        docker.io runc crun \
+        auditd \
+        build-essential jq curl uidmap \
+        linux-headers-$(uname -r) || true
+      systemctl enable --now docker
+      # Let the default lima user drive docker without sudo.
+      usermod -aG docker "${LIMA_CIDATA_USER:-$(logname 2>/dev/null || echo ubuntu)}" || true
+
+  - mode: user
+    script: |
+      #!/bin/bash
+      set -eux
+      # Sanity: docker reachable for this user (may need a re-login on first boot).
+      docker version >/dev/null 2>&1 || echo "NOTE: log out/in (or 'newgrp docker') if docker needs sudo"

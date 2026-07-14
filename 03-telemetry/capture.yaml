@@ -1,0 +1,24 @@
+# Phase 3 DEBUG telemetry tap — NOT a detection (real detections are Phase 4).
+#
+# This broadly logs process execs and opens of shared objects / lab paths, so you
+# can confirm the sensor actually observes the Phase 2 attack. It's deliberately
+# self-contained (no dependency on Falco's default macros), so it can be loaded
+# on its own with:  falco -r capture.yaml
+#
+# In Phase 4 you'll replace this firehose with precise, low-false-positive rules.
+
+- rule: GPUSEC Debug Exec
+  desc: Log every process exec (lab telemetry tap)
+  condition: evt.type=execve and evt.dir=<
+  output: "GPUSEC_EXEC pname=%proc.pname proc=%proc.name cmd=%proc.cmdline exepath=%proc.exepath euid=%user.uid"
+  priority: INFO
+  tags: [gpusec-debug]
+
+- rule: GPUSEC Debug Open
+  desc: Log opens of shared objects and lab paths (lab telemetry tap)
+  condition: >
+    evt.type in (open,openat,openat2) and evt.dir=< and
+    (fd.name endswith ".so" or fd.name startswith "/opt/gpu-sec")
+  output: "GPUSEC_OPEN proc=%proc.name file=%fd.name euid=%user.uid pname=%proc.pname"
+  priority: INFO
+  tags: [gpusec-debug]

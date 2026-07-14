@@ -1,0 +1,34 @@
+title: LD_PRELOAD in Container Runtime Hook Chain
+id: id: 8c3cde57-47c4-4f86-b9c2-5d0b8f8df31b        # TODO: generate a real UUID (uuidgen)
+status: experimental
+description: >
+  Detects a process in the container-runtime / OCI-hook chain that carries
+  LD_PRELOAD in its environment — the NVIDIAScape (CVE-2025-23266) container-escape
+  cause. Portable (SIEM) equivalent of the Falco rule of the same name.
+references:
+  - https://www.wiz.io/blog/nvidia-ai-vulnerability-cve-2025-23266-nvidiascape
+author: <you>
+logsource:
+  category: process_creation
+  product: linux
+detection:
+  # TODO: fill this in. NOTE the real-world limitation you should call out in your
+  # writeup: many process_creation log sources (e.g. Sysmon-for-Linux/auditd) do
+  # NOT capture a process's environment by default, so LD_PRELOAD may not be a
+  # visible field. Decide what you CAN key on (parent image = the runtime/hook,
+  # child = a dynamically-linked helper) and document the visibility gap.
+  
+  selection:
+    Image|endswith:
+      - '/ldconfig'
+      - '/nvidia-modprobe'
+      - '/nvidia-smi'
+      - '/nvidia-container-cli'
+    EnvironmentVariables|contains: 'LD_PRELOAD='
+  condition: selection
+falsepositives:
+  - Legitimate use of LD_PRELOAD by a vendor GPU hook (rare; investigate)
+level: high
+tags:
+  - attack.privilege_escalation
+  - attack.t1574.006        # Dynamic Linker Hijacking
