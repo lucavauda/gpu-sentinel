@@ -13,6 +13,7 @@ The whole thing routes through **containers → OCI runtime hooks → detection
 engineering**, because that's where the real GPU-cloud CVEs land and where one
 person can work solo on a laptop. "GPU security" turns out to be mostly Linux
 security.
+Full Writeup [here](https://lucavaudano.bearblog.dev/gpu-sentinel-reproducing-a-gpu-cloud-container-escape-with-no-gpu/).
 
 ## 📖 The writeup
 
